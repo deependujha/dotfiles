@@ -1,0 +1,159 @@
+" ============================================================
+" General
+" ============================================================
+
+set nocompatible
+set encoding=utf-8
+set hidden
+set mouse=a
+
+" ------------------------------------------------------------
+" Clipboard: plain y / yy / visual y go to the OS clipboard.
+" ------------------------------------------------------------
+if has('unnamedplus')
+    " Linux builds with +clipboard: the '+' register is the system clipboard.
+    set clipboard=unnamedplus
+elseif has('clipboard')
+    " macOS builds have +clipboard but not 'unnamedplus'; there the '*'
+    " register *is* the system clipboard, so 'unnamed' gives the same result.
+    set clipboard=unnamed
+elseif exists('##TextYankPost')
+    " Vim compiled without clipboard support (e.g. Apple's /usr/bin/vim,
+    " Debian's plain 'vim'): pipe every yank to an external tool instead.
+    " This covers copying only; pasting from the OS uses the terminal's paste.
+    if executable('pbcopy')
+        let s:clip_cmd = 'pbcopy'
+    elseif !empty($WAYLAND_DISPLAY) && executable('wl-copy')
+        let s:clip_cmd = 'wl-copy'
+    elseif !empty($DISPLAY) && executable('xclip')
+        let s:clip_cmd = 'xclip -selection clipboard -in'
+    elseif !empty($DISPLAY) && executable('xsel')
+        let s:clip_cmd = 'xsel --clipboard --input'
+    endif
+    if exists('s:clip_cmd')
+        augroup dotfiles_clipboard
+            autocmd!
+            autocmd TextYankPost *
+                \ if v:event.operator ==# 'y' && v:event.regname ==# '' |
+                \     call system(s:clip_cmd, getreg('"')) |
+                \ endif
+        augroup END
+    endif
+endif
+
+" Persistent undo
+if has('persistent_undo')
+    set undofile
+    set undodir=~/.vim/undo//
+endif
+
+" ============================================================
+" Plugins (vim-plug)
+" ============================================================
+
+call plug#begin('~/.vim/plugged')
+
+Plug 'sheerun/vim-polyglot'
+
+call plug#end()
+
+" ============================================================
+" Syntax & Filetypes
+" ============================================================
+
+syntax on
+filetype plugin indent on
+
+" ============================================================
+" Indentation
+" ============================================================
+
+set expandtab
+set tabstop=4
+set shiftwidth=4
+set softtabstop=4
+set autoindent
+set smartindent
+
+" ============================================================
+" UI
+" ============================================================
+
+set number
+set relativenumber
+set cursorline
+set signcolumn=yes
+set wrap
+set linebreak
+set scrolloff=8
+set sidescrolloff=8
+set showmatch
+set laststatus=2
+set ruler
+set showcmd
+set wildmenu
+set cmdheight=1
+
+" ============================================================
+" Search
+" ============================================================
+
+set ignorecase
+set smartcase
+set incsearch
+set hlsearch
+
+" Clear search highlighting with Escape
+nnoremap <Esc> :nohlsearch<CR>
+
+" ============================================================
+" Editing
+" ============================================================
+
+set backspace=indent,eol,start
+set confirm
+set autoread
+
+set copyindent
+set preserveindent
+
+" ============================================================
+" Splits
+" ============================================================
+
+set splitbelow
+set splitright
+
+" ============================================================
+" Python
+" ============================================================
+
+autocmd FileType python setlocal tabstop=4 shiftwidth=4 softtabstop=4 expandtab
+
+" ============================================================
+" Rust
+" ============================================================
+
+autocmd FileType rust setlocal tabstop=4 shiftwidth=4 softtabstop=4 expandtab
+
+" ============================================================
+" C / C++
+" ============================================================
+
+autocmd FileType c,cpp setlocal tabstop=4 shiftwidth=4 softtabstop=4 expandtab
+
+" ============================================================
+" Markdown
+" ============================================================
+
+autocmd FileType markdown setlocal wrap linebreak spell
+
+" ============================================================
+" Miscellaneous
+" ============================================================
+
+set list
+set listchars=tab:»·,trail:·,extends:>,precedes:<
+
+set noerrorbells
+set novisualbell
