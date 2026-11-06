@@ -124,7 +124,7 @@ main() {
     if [ -z "$sessions" ]; then
         log_info "No backups found in $DOTFILES_BACKUP_ROOT."
         log_info "Backups are only created when the installer replaces existing files;"
-        log_info "if you had no previous Vim config, there is nothing to restore."
+        log_info "if you had no previous config, there is nothing to restore."
         exit 0
     fi
 
