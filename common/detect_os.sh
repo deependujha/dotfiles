@@ -36,7 +36,7 @@ detect_pkg_family() {
     esac
 }
 
-# install_hint <vim|vim-clipboard|git|curl|clipboard-tool>
+# install_hint <vim|vim-clipboard|git|curl|clipboard-tool|zellij>
 # Prints a suggested command for the current platform.
 install_hint() {
     local what="$1" family
@@ -46,6 +46,7 @@ install_hint() {
         brew:git)                    echo "xcode-select --install   (or: brew install git)" ;;
         brew:curl)                   echo "brew install curl" ;;
         brew:clipboard-tool)         echo "pbcopy ships with macOS; check that /usr/bin is on PATH" ;;
+        brew:zellij)                 echo "brew install zellij" ;;
 
         apt:vim)            echo "sudo apt install vim" ;;
         apt:vim-clipboard)  echo "sudo apt install vim-gtk3   (full Vim with +clipboard; terminal 'vim' still works)" ;;
@@ -65,6 +66,11 @@ install_hint() {
 
         apk:vim)            echo "sudo apk add vim" ;;
         apk:clipboard-tool) echo "sudo apk add wl-clipboard   or   sudo apk add xclip" ;;
+
+        # Not packaged everywhere (e.g. Debian/Ubuntu); cargo works on any Linux.
+        pacman:zellij) echo "sudo pacman -S zellij" ;;
+        apk:zellij)    echo "sudo apk add zellij" ;;
+        *:zellij)      echo "cargo install --locked zellij   (or a release binary: https://github.com/zellij-org/zellij/releases)" ;;
 
         apt:*)    echo "sudo apt install $what" ;;
         dnf:*)    echo "sudo dnf install $what" ;;

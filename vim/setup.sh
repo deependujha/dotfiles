@@ -189,7 +189,15 @@ VIM
 install_plugins() {
     local log="$WORK_DIR/plug.log" rc=0 missing
 
-    log_info "Installing Vim plugins (headless PlugInstall)..."
+    # Re-runs: if every declared plugin is already on disk, there's nothing
+    # to fetch. (`git pull` on the repo already updated the vimrc itself.)
+    missing="$(missing_plugins)"
+    if [ -z "$missing" ]; then
+        log_info "All plugins already installed; skipping PlugInstall."
+        return 0
+    fi
+
+    log_info "Installing missing Vim plugins (headless PlugInstall): $(printf '%s' "$missing" | tr '\n' ' ')"
     # -N -e -s: silent Ex mode, no UI. stdin from /dev/null so Vim can't read
     # the installer itself when it was piped in, and exits at EOF regardless.
     # The [Plugins] status buffer is written out so failures can be shown.
