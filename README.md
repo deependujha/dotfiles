@@ -8,7 +8,8 @@ The goal is one command on a fresh machine and nothing to do by hand afterwards.
 |-----------|--------|
 | Vim       | ✅ supported |
 | Zellij    | ✅ supported |
-| Neovim, Git, Shell, terminal emulators | planned |
+| Neovim (AstroNvim) | ✅ supported |
+| Git, Shell, terminal emulators | planned |
 
 ## Installation
 
@@ -26,9 +27,11 @@ What this does:
    - installing all plugins headlessly
 
    For Zellij it validates `zellij/config.kdl` with `zellij setup --check`, backs up your existing `~/.config/zellij/config.kdl`, and symlinks it to the repo. Only that file is linked, so your `layouts/` and `themes/` are left alone. If `zellij` isn't installed yet, the config is still linked and you get an install hint.
+
+   For Neovim it checks for Neovim ≥ 0.11, backs up your existing `~/.config/nvim`, symlinks it to `nvim/config`, and then installs every plugin, language server, formatter and treesitter parser headlessly. It verifies that each one is actually there afterwards. The first run takes a few minutes.
 3. Prints a summary that includes where the backup went.
 
-When it exits successfully, Vim is ready to use. You don't need to run `:PlugInstall` yourself.
+When it exits successfully, Vim and Neovim are ready to use. You don't need to run `:PlugInstall` or `:Lazy sync` yourself.
 
 Environment overrides:
 
@@ -51,7 +54,7 @@ When `install.sh` runs from inside a checkout, it uses that checkout directly an
 ## Selective installation
 
 ```bash
-bash install.sh          # default components (currently: vim zellij)
+bash install.sh          # default components (currently: vim zellij nvim)
 bash install.sh zellij   # only the named components
 bash install.sh --help   # list available components
 ```
@@ -85,7 +88,7 @@ bash ~/.local/share/dotfiles/scripts/restore.sh 2026-11-06_103000
 
 The restore script shows exactly what it will do and asks before changing anything. Whatever is currently in place gets moved to a new `<timestamp>_pre-restore` backup first, so a restore can itself be undone. Symlinks into this repo are removed, since they hold no data.
 
-If you had no config before installing, no backup was made and there is nothing to restore. To uninstall in that case, remove the symlink (`rm ~/.vimrc` or `rm ~/.config/zellij/config.kdl`).
+If you had no config before installing, no backup was made and there is nothing to restore. To uninstall in that case, remove the symlink (`rm ~/.vimrc`, `rm ~/.config/zellij/config.kdl` or `rm ~/.config/nvim`).
 
 ## Updating
 
@@ -98,14 +101,14 @@ git -C ~/.local/share/dotfiles pull --ff-only
 bash ~/.local/share/dotfiles/install.sh
 ```
 
-Because the configs are symlinks, a `git pull` alone updates your Vim and Zellij settings. Re-run the installer when plugins were added so they get installed.
+Because the configs are symlinks, a `git pull` alone updates your Vim, Zellij and Neovim settings. Re-run the installer when plugins were added so they get installed.
 
 ## Supported platforms
 
 - **macOS**: tested with the system Bash 3.2 and system Vim 9.1.
 - **Linux**: Debian/Ubuntu, Fedora/RHEL, Arch, openSUSE and Alpine get tailored install hints.
 
-Dependencies: **bash**, **git**, **curl**, **vim**, and optionally **zellij** (a full build with `+eval`, not `vim-tiny`). The installer never installs system packages. If something is missing, it stops before changing anything and prints the install command for your OS.
+Dependencies: **bash**, **git**, **curl**, **vim** (a full build with `+eval`, not `vim-tiny`), and optionally **zellij** and **neovim** ≥ 0.11. Neovim also needs a C compiler, and uses `rg`, `node`, `go`, `fd`, `lazygit` and `deno` for the full feature set. The installer never installs system packages. If something is missing, it stops before changing anything and prints the install command for your OS.
 
 ## Repository layout
 
@@ -116,6 +119,7 @@ common/backup.sh      timestamped backups + manifest
 common/detect_os.sh   OS / package-manager detection, install hints
 vim/                  vimrc, setup.sh, notes/
 zellij/               config.kdl, setup.sh
+nvim/                 config/ (→ ~/.config/nvim), setup.sh, notes/
 scripts/restore.sh    restore from a backup
 ```
 
@@ -123,4 +127,4 @@ scripts/restore.sh    restore from a backup
 
 Create `<tool>/setup.sh`, which can use the helpers in `common/`, and optionally add the tool to `DEFAULT_COMPONENTS` in `install.sh`. `install.sh <tool>` picks it up automatically, and backups and restore work the same way through `backup_item`.
 
-See [vim/notes/README.md](vim/notes/README.md) for Vim specifics and [vim/notes/cheatsheet.md](vim/notes/cheatsheet.md) for a quick reference.
+See [vim/notes/README.md](vim/notes/README.md) for Vim specifics and [vim/notes/cheatsheet.md](vim/notes/cheatsheet.md) for a quick reference. For Neovim, see [nvim/notes/README.md](nvim/notes/README.md) (adding plugins, changing the theme, languages, clipboard) and [nvim/notes/cheatsheet.md](nvim/notes/cheatsheet.md).
