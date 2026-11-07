@@ -10,6 +10,7 @@ Keys are in [cheatsheet.md](cheatsheet.md). This file explains how the setup wor
 - [Adding, configuring and removing plugins](#adding-configuring-and-removing-plugins)
 - [Themes and light/dark mode](#themes-and-lightdark-mode)
 - [Languages: LSP, formatters, treesitter](#languages-lsp-formatters-treesitter)
+- [Snippets](#snippets)
 - [Clipboard](#clipboard)
 - [Updating](#updating)
 - [How installation works](#how-installation-works)
@@ -25,6 +26,7 @@ Keys are in [cheatsheet.md](cheatsheet.md). This file explains how the setup wor
 | Add a language | Add an `astrocommunity.pack.<lang>` line to `config/lua/community.lua` |
 | Change an option (tabs, wrap, …) | `options.opt` in `config/lua/plugins/astrocore.lua` |
 | Add a key mapping | `mappings` in `config/lua/plugins/astrocore.lua` |
+| Add a snippet | `config/luasnippets/all.lua` (every file) or `<filetype>.lua` next to it |
 | Format on save for more languages | `allow_filetypes` in `config/lua/plugins/astrolsp.lua` |
 | See why something is broken | `:checkhealth`, `:LspInfo`, `:Lazy`, `:Mason` |
 | Find a key | Press `<Space>` and wait: which-key lists everything |
@@ -52,6 +54,7 @@ nvim/
 └── config/                    ← ~/.config/nvim points here
     ├── init.lua               bootstraps lazy.nvim; leave it alone
     ├── lazy-lock.json         exact plugin versions; commit it after updating
+    ├── luasnippets/           your snippets: all.lua (every file), python.lua, cpp.lua, …
     └── lua/
         ├── lazy_setup.lua     loads AstroNvim, then community.lua, then plugins/
         ├── community.lua      language packs and themes from AstroCommunity
@@ -216,6 +219,39 @@ Each language comes from an AstroCommunity *pack* in `config/lua/community.lua`.
 **Per-server settings** go in `config = { <server> = { settings = { … } } }` in `astrolsp.lua`. The `basedpyright` entry there is an example.
 
 **Treesitter:** extra parsers are listed in `config/lua/plugins/treesitter.lua`, and anything else installs on demand. To install by hand, run `:TSInstall <lang>`. To update all parsers, run `:TSUpdate`.
+
+## Snippets
+
+Snippets are short triggers that expand into code. Type `main`, pick the snippet from the completion menu with `<CR>`, and `<Tab>`/`<S-Tab>` jump between the placeholders.
+
+- **Built in:** [friendly-snippets](https://github.com/rafamadriz/friendly-snippets) supplies hundreds of snippets for every language (`main` in C++, `fn` in Rust, `iferr` in Go, …).
+- **Yours:** [LuaSnip](https://github.com/L3MON4D3/LuaSnip) Lua files in `config/luasnippets/`. AstroNvim loads this folder automatically, so no config is needed.
+  - `all.lua` snippets show up in **every** filetype. It currently holds `main` → a Python `def main()` + `if __name__ == "__main__":` block.
+  - `<filetype>.lua` snippets show only in that filetype: `python.lua`, `cpp.lua`, `rust.lua`, `go.lua`, `typescript.lua`, … (`:set ft?` tells you a buffer's filetype).
+  - Saving a snippet file reloads it right away, no restart needed.
+
+A snippet file returns a list of snippets:
+
+```lua
+local ls = require "luasnip"
+local s, t, i = ls.snippet, ls.text_node, ls.insert_node
+
+return {
+  s({ trig = "todo", desc = "TODO comment" }, {
+    t "TODO(deependu): ",
+    i(1, "what"),            -- placeholder 1, with default text
+  }),
+  s("for", {
+    t "for (int ", i(1, "i"), t " = 0; ", i(2, "i"), t " < ", i(3, "n"), t "; ++", i(4, "i"), t { ") {", "  " },
+    i(0),                    -- i(0) is where the cursor ends up
+    t { "", "}" },
+  }),
+}
+```
+
+`t { "a", "b" }` writes two lines. To repeat what you typed in another placeholder, or for anything fancier, see `fmt` and `rep` in the [LuaSnip docs](https://github.com/L3MON4D3/LuaSnip/blob/master/DOC.md).
+
+If one of your triggers matches a built-in one (like `main` in C++), both appear in the menu. The docs popup shows each one's `desc`.
 
 ## Clipboard
 
