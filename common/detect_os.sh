@@ -36,7 +36,8 @@ detect_pkg_family() {
     esac
 }
 
-# install_hint <vim|vim-clipboard|git|curl|clipboard-tool|zellij>
+# install_hint <tool>   e.g. vim, vim-clipboard, git, curl, clipboard-tool, zellij,
+#                      neovim, c-compiler, ripgrep, fd, node, go, lazygit, deno
 # Prints a suggested command for the current platform.
 install_hint() {
     local what="$1" family
@@ -47,6 +48,34 @@ install_hint() {
         brew:curl)                   echo "brew install curl" ;;
         brew:clipboard-tool)         echo "pbcopy ships with macOS; check that /usr/bin is on PATH" ;;
         brew:zellij)                 echo "brew install zellij" ;;
+        brew:c-compiler)             echo "xcode-select --install" ;;
+        brew:tar|brew:unzip)         echo "both ship with macOS; check that /usr/bin is on PATH" ;;
+
+        # Neovim: distro packages are often older than the 0.11 AstroNvim needs.
+        apt:neovim)    echo "sudo snap install nvim --classic   (apt's neovim is usually too old; or use the AppImage from https://github.com/neovim/neovim/releases)" ;;
+        dnf:neovim)    echo "sudo dnf install neovim" ;;
+        pacman:neovim) echo "sudo pacman -S neovim" ;;
+        apk:neovim)    echo "sudo apk add neovim" ;;
+        *:nvim)        install_hint neovim ;;
+
+        apt:c-compiler)    echo "sudo apt install build-essential" ;;
+        dnf:c-compiler)    echo "sudo dnf install gcc make" ;;
+        pacman:c-compiler) echo "sudo pacman -S base-devel" ;;
+        zypper:c-compiler) echo "sudo zypper install gcc make" ;;
+        apk:c-compiler)    echo "sudo apk add build-base" ;;
+
+        apt:fd)      echo "sudo apt install fd-find" ;;
+        dnf:fd)      echo "sudo dnf install fd-find" ;;
+        apt:node)    echo "sudo apt install nodejs npm" ;;
+        dnf:node|zypper:node) echo "sudo $([ "$family" = dnf ] && echo dnf || echo zypper) install nodejs npm" ;;
+        pacman:node) echo "sudo pacman -S nodejs npm" ;;
+        apk:node)    echo "sudo apk add nodejs npm" ;;
+        apt:go)      echo "sudo apt install golang-go" ;;
+        dnf:go)      echo "sudo dnf install golang" ;;
+        *:lazygit)   [ "$family" = brew ] && echo "brew install lazygit" || echo "see https://github.com/jesseduffield/lazygit#installation" ;;
+        *:deno)      [ "$family" = brew ] && echo "brew install deno" || echo "curl -fsSL https://deno.land/install.sh | sh" ;;
+
+        brew:*)   echo "brew install $what" ;;
 
         apt:vim)            echo "sudo apt install vim" ;;
         apt:vim-clipboard)  echo "sudo apt install vim-gtk3   (full Vim with +clipboard; terminal 'vim' still works)" ;;

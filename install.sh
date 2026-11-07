@@ -22,7 +22,7 @@ DOTFILES_BRANCH="${DOTFILES_BRANCH:-main}"
 
 # Installed when no component is named. Adding a tool = create <tool>/setup.sh
 # and (optionally) append it here.
-DEFAULT_COMPONENTS="vim zellij"
+DEFAULT_COMPONENTS="vim zellij nvim"
 
 # Re-use the running interpreter for children so `/bin/bash install.sh`
 # really exercises Bash 3.2 end to end.
