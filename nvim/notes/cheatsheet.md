@@ -16,7 +16,7 @@ These are AstroNvim v6 defaults plus this config's additions. Run `:map` for the
 | `<Space>fk` | Search keymaps |
 | `<Space>e` | Toggle the file explorer |
 | `<Space>o` | Focus the file explorer |
-| `<Space>w` | Save |
+| `<Space>w` | Save (rarely needed: files autosave ~1 second after you stop editing) |
 | `<Space>q` | Close window |
 | `<Space>c` | Close buffer |
 | `]b` / `[b` | Next / previous buffer |
@@ -54,6 +54,7 @@ Completion: `<C-n>`/`<C-p>` or `<Tab>`/`<S-Tab>` move through the list, `<CR>` a
 | `<Space>uf` | Format on save, this buffer |
 | `<Space>uF` | Format on save, everywhere |
 | `<Space>uH` | Inlay hints (types inline) |
+| `<Space>uW` | Autosave on / off |
 | `<Space>un` | Line numbers: relative / absolute / off |
 | `<Space>uw` | Line wrap |
 | `<Space>us` | Spell check |

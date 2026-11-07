@@ -10,6 +10,7 @@ Keys are in [cheatsheet.md](cheatsheet.md). This file explains how the setup wor
 - [Adding, configuring and removing plugins](#adding-configuring-and-removing-plugins)
 - [Themes and light/dark mode](#themes-and-lightdark-mode)
 - [Languages: LSP, formatters, treesitter](#languages-lsp-formatters-treesitter)
+- [Autosave](#autosave)
 - [Snippets](#snippets)
 - [Clipboard](#clipboard)
 - [Updating](#updating)
@@ -27,6 +28,7 @@ Keys are in [cheatsheet.md](cheatsheet.md). This file explains how the setup wor
 | Change an option (tabs, wrap, …) | `options.opt` in `config/lua/plugins/astrocore.lua` |
 | Add a key mapping | `mappings` in `config/lua/plugins/astrocore.lua` |
 | Add a snippet | `config/luasnippets/all.lua` (every file) or `<filetype>.lua` next to it |
+| Turn autosave off | `<Space>uW` for now; `enabled = false` in `config/lua/plugins/autosave.lua` for good |
 | Format on save for more languages | `allow_filetypes` in `config/lua/plugins/astrolsp.lua` |
 | See why something is broken | `:checkhealth`, `:LspInfo`, `:Lazy`, `:Mason` |
 | Find a key | Press `<Space>` and wait: which-key lists everything |
@@ -37,6 +39,7 @@ Paths in this file are relative to `nvim/` in the dotfiles repo. `~/.config/nvim
 
 - **LSP** for every language above: completion, go-to-definition, hover docs, rename, code actions and diagnostics.
 - **Treesitter** syntax highlighting and indentation. A missing parser is installed the first time you open a file that needs it.
+- **Autosave**: files save themselves about 1 second after you stop editing, or right away when you switch buffers or windows. Format on save runs on each autosave, so formatted code appears without `:w`.
 - **Formatting**: on save for Go, Python and Rust; by hand with `<Space>lf` for everything else (prettier for web files, clang-format via clangd for C/C++).
 - **System clipboard**: `y` copies to the macOS clipboard and `p` pastes from it. This also works over SSH.
 - **A theme that follows macOS dark mode**: Catppuccin Mocha in dark mode and Catppuccin Latte in light mode, matching Ghostty. `toggle_dark_mode` switches nvim too, within about a second.
@@ -64,6 +67,7 @@ nvim/
             ├── theme.lua      light/dark theme names + OS dark mode sync
             ├── astrocore.lua  vim options, key mappings, autocommands
             ├── astrolsp.lua   LSP: format on save, per-server settings
+            ├── autosave.lua   autosave (delay, which buffers, on/off)
             ├── mason.lua      extra tools Mason should install
             ├── treesitter.lua extra parsers
             ├── git.lua        gitsigns blame, fugitive, trace-pr
@@ -214,11 +218,23 @@ Each language comes from an AstroCommunity *pack* in `config/lua/community.lua`.
 
 **Add a single tool** (formatter, linter, server) without a pack: add its `:Mason` name to `config/lua/plugins/mason.lua`.
 
-**Format on save** is limited to Go, Python and Rust by `allow_filetypes` in `config/lua/plugins/astrolsp.lua`. Add filetypes there, or delete the `allow_filetypes` line to format everything on save. `<Space>uf` toggles it for the current buffer and `<Space>uF` toggles it everywhere.
+**Format on save** (which also runs on every autosave) is limited to Go, Python and Rust by `allow_filetypes` in `config/lua/plugins/astrolsp.lua`. Add filetypes there, or delete the `allow_filetypes` line to format everything on save. `<Space>uf` toggles it for the current buffer and `<Space>uF` toggles it everywhere.
 
 **Per-server settings** go in `config = { <server> = { settings = { … } } }` in `astrolsp.lua`. The `basedpyright` entry there is an example.
 
 **Treesitter:** extra parsers are listed in `config/lua/plugins/treesitter.lua`, and anything else installs on demand. To install by hand, run `:TSInstall <lang>`. To update all parsers, run `:TSUpdate`.
+
+## Autosave
+
+[auto-save.nvim](https://github.com/okuuva/auto-save.nvim), set up in `config/lua/plugins/autosave.lua`.
+
+- **When it saves:** 1 second after you leave insert mode or change text in normal mode (`dd`, `p`, `u`, …). If you keep editing, it waits until you stop. It also saves straight away when you switch buffers, quit, or nvim loses focus (switching to another window).
+- **Formatting:** an autosave is an ordinary `:w`, so format on save runs too. For Go, Python and Rust the file is reformatted about a second after you stop typing. For other languages, add them to `allow_filetypes` (see [Languages](#languages-lsp-formatters-treesitter)).
+- **What it skips:** terminals, the file explorer, help and other special buffers, read-only files, unnamed buffers, and git commit messages (saving one early would end the commit).
+- **Turn it off:** `<Space>uW` (or `:ASToggle`) toggles it for this session. For good, set `enabled = false` in `autosave.lua`.
+- **Change the delay:** `debounce_delay` in `autosave.lua`, in milliseconds.
+
+Undo still works across autosaves (`u`), and undo history survives closing the file.
 
 ## Snippets
 
