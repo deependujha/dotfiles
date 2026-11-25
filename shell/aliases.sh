@@ -38,6 +38,7 @@ gpush() {
 }
 
 # Clone your fork of a repository and configure the original as upstream.
+# Clone your fork of a repository and configure the original as upstream.
 clone() {
     if [ -z "$1" ]; then
         echo "Usage: clone <upstream_repo_url>"
