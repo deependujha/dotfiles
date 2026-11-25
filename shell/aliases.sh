@@ -37,6 +37,33 @@ gpush() {
     fi
 }
 
+# Clone your fork of a repository and configure the original as upstream.
+clone() {
+    if [ -z "$1" ]; then
+        echo "Usage: clone <upstream_repo_url>"
+        return 1
+    fi
+
+    local repo_url="$1"
+    local repo_name
+    local fork_url
+
+    repo_name="${repo_url##*/}"
+    repo_name="${repo_name%.git}"
+    fork_url="git@github.com:deependujha/${repo_name}.git"
+
+    echo "🍴 Cloning your fork: $fork_url"
+    git clone "$fork_url" || return 1
+
+    cd "$repo_name" || return 1
+
+    echo "🔗 Adding upstream: $repo_url"
+    git remote add upstream "$repo_url" || return 1
+
+    echo "✅ Repository setup complete!"
+    git remote -v
+}
+
 # Print the current branch name.
 current_branch() {
     git rev-parse --abbrev-ref HEAD
