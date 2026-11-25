@@ -90,6 +90,15 @@ check_prerequisites() {
         log_warn "'fd' not found: the Python venv selector (<Leader>lv) is disabled and file search is slower. Install with:  $(install_hint fd)"
         warned=1
     fi
+    # Mason builds debugpy/basedpyright in a venv. Debian/Ubuntu ship python3
+    # without ensurepip, so 'python3 -m venv' fails until python3-venv is there.
+    if ! command_exists python3; then
+        log_warn "'python3' not found: the Python language server and debugger (basedpyright, debugpy) can't be installed. Install with:  $(install_hint python3-venv)"
+        warned=1
+    elif ! python3 -c 'import venv, ensurepip' >/dev/null 2>&1; then
+        log_warn "'python3 -m venv' doesn't work: the Python language server and debugger (basedpyright, debugpy) can't be installed. Install with:  $(install_hint python3-venv)"
+        warned=1
+    fi
     warn_missing lazygit lazygit "the git UI (<Leader>gg) won't open"
     warn_missing deno deno "markdown live preview (:PeekOpen) is disabled"
     [ "$warned" -eq 0 ] || log_warn "Continuing; install the tools above later and run 'bash install.sh nvim' again."

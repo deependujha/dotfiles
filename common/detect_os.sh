@@ -66,6 +66,9 @@ install_hint() {
 
         apt:fd)      echo "sudo apt install fd-find" ;;
         dnf:fd)      echo "sudo dnf install fd-find" ;;
+        apt:python3-venv) echo "sudo apt install python3-venv" ;;
+        brew:python3-venv) echo "brew install python" ;;
+        *:python3-venv)   echo "install python3 with your package manager (it must include the venv and ensurepip modules)" ;;
         apt:node)    echo "sudo apt install nodejs npm" ;;
         dnf:node|zypper:node) echo "sudo $([ "$family" = dnf ] && echo dnf || echo zypper) install nodejs npm" ;;
         pacman:node) echo "sudo pacman -S nodejs npm" ;;
