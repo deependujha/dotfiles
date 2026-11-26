@@ -21,6 +21,10 @@ alias gl='git log --oneline'
 alias gsync='git checkout main && (git remote | grep -q "^upstream$" && git pull upstream main || git pull origin main) && git push origin main'
 alias gmsync='git checkout master && git pull upstream master && git push origin master'
 
+work() {
+    cd "$HOME/codes/oss/lightning-ai/$1"
+}
+
 gstatus() {
     git status
 }
