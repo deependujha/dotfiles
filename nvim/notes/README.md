@@ -82,7 +82,7 @@ Things that are **not** in the repo, because nvim manages them:
 | Path | Contains | Safe to delete? |
 |---|---|---|
 | `~/.local/share/nvim/lazy/` | plugin source code | Yes, it reinstalls on next start |
-| `~/.local/share/nvim/mason/` | LSP servers, formatters, debuggers | Yes, then run `bash install.sh nvim` |
+| `~/.local/share/nvim/mason/` | LSP servers, formatters, debuggers | Yes, then run `make nvim` |
 | `~/.local/share/nvim/site/parser/` | compiled treesitter parsers | Yes, they reinstall |
 | `~/.local/state/nvim/` | logs, undo history, shada | Yes, but you lose undo history |
 
@@ -300,13 +300,13 @@ On another machine: `git pull` in the dotfiles repo, then `:Lazy restore` instal
 `nvim/setup.sh` (run by `install.sh`, or directly with `bash nvim/setup.sh`):
 
 1. Checks the OS, `nvim` ≥ 0.11, `git`, `curl`, `tar` and a C compiler, and stops before changing anything if one is missing. It then warns about optional tools: `rg` (grep), `node`/`npm` (most web language servers), `go` (gopls), `unzip`, `fd` (venv picker), `lazygit`, `deno` (markdown preview).
-2. Moves an existing `~/.config/nvim` into `~/dotfiles_backup/<timestamp>/nvim/`, unless it is already the symlink. Plugins and tools in `~/.local/share/nvim` are kept and reused.
+2. Moves an existing `~/.config/nvim` into `~/dotfiles/snapshot/nvim/`, unless it is already the symlink. Plugins and tools in `~/.local/share/nvim` are kept and reused.
 3. Symlinks `~/.config/nvim` → `nvim/config`.
 4. Starts nvim headlessly to install all plugins at the versions in `lazy-lock.json`, and fails if any are missing.
 5. Starts nvim headlessly again to install every Mason tool and treesitter parser. It waits until they finish and then lists anything that didn't install. `DOTFILES_NVIM_SKIP_TOOLS=1` skips this step.
 6. Reports the clipboard setup.
 
-Re-running it is safe and quick. Already-installed things are skipped, and a re-run picks up anything that failed before. `bash scripts/restore.sh` puts the previous config back.
+Re-running it is safe and quick. Already-installed things are skipped, and a re-run picks up anything that failed before. `make restore` puts the previous config back.
 
 ## Troubleshooting
 
@@ -320,4 +320,4 @@ Re-running it is safe and quick. Already-installed things are skipped, and a re-
 | Theme doesn't follow dark mode | `:checkhealth auto-dark-mode`; `:set background?` should change when you toggle |
 | Clipboard doesn't work | `:checkhealth vim.provider` (Clipboard section) |
 | Everything is broken after an update | `:Lazy restore` returns to the versions in `lazy-lock.json`; `git checkout config/lazy-lock.json` first if you hadn't committed |
-| Start completely fresh | Move `~/.local/share/nvim`, `~/.local/state/nvim` and `~/.cache/nvim` aside, then `bash install.sh nvim` |
+| Start completely fresh | Move `~/.local/share/nvim`, `~/.local/state/nvim` and `~/.cache/nvim` aside, then `make nvim` |

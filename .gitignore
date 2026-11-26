@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# dotfiles: what the last `make update` replaced in $HOME (see common/backup.sh)
+/snapshot/
+/snapshot.restoring/
+# dotfiles: machine-only shell settings
+/shell/local.sh

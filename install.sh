@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 # dotfiles installer — public entry point.
 #
-#   bash install.sh                 # install the default components
-#   bash install.sh vim             # install only the listed components
+# Day to day this is run through the Makefile:  make update
+#
+#   bash install.sh                 # apply the default components
+#   bash install.sh vim             # apply only the listed components
 #   bash <(curl -fsSL https://raw.githubusercontent.com/deependujha/dotfiles/main/install.sh)
 #
 # When run from a downloaded copy (process substitution or a pipe) there is no
 # repository next to the script, so it first clones/updates the repository to
-# $DOTFILES_DIR (default ~/.local/share/dotfiles) and re-executes the copy there.
+# $DOTFILES_DIR (default ~/dotfiles) and re-executes the copy there.
 #
 # Environment overrides:
 #   DOTFILES_DIR          where to clone the repo when bootstrapping
 #   DOTFILES_REPO         git URL to clone (default: GitHub over HTTPS)
 #   DOTFILES_BRANCH       branch to clone (default: main)
-#   DOTFILES_BACKUP_ROOT  where backups go (default: ~/dotfiles_backup)
 
 set -euo pipefail
 
@@ -22,7 +23,7 @@ DOTFILES_BRANCH="${DOTFILES_BRANCH:-main}"
 
 # Installed when no component is named. Adding a tool = create <tool>/setup.sh
 # and (optionally) append it here.
-DEFAULT_COMPONENTS="vim zellij nvim shell"
+DEFAULT_COMPONENTS="shell vim zellij nvim"
 
 # Re-use the running interpreter for children so `/bin/bash install.sh`
 # really exercises Bash 3.2 end to end.
@@ -49,7 +50,7 @@ find_local_repo() {
 }
 
 bootstrap() {
-    local target="${DOTFILES_DIR:-$HOME/.local/share/dotfiles}"
+    local target="${DOTFILES_DIR:-$HOME/dotfiles}"
 
     # Guard against an exec loop if the clone somehow isn't recognised.
     [ -z "${DOTFILES_BOOTSTRAPPED:-}" ] || _boot_die "Bootstrap re-entered; '$target' does not look like the dotfiles repository."
@@ -88,7 +89,7 @@ Usage: install.sh [component ...]
 Components available: $(list_components "$1")
 Default:              $DEFAULT_COMPONENTS
 
-Restore a previous configuration with: bash scripts/restore.sh
+Undo what the last run replaced with: make restore
 EOF
 }
 
@@ -132,17 +133,16 @@ main() {
     requested="${requested# }"
     [ -n "$requested" ] || requested="$DEFAULT_COMPONENTS"
 
+    # backup.sh exported DOTFILES_RUN_ID, so every component in this run
+    # writes to the same snapshot.
     export DOTFILES_DIR="$repo"
-    # One backup session shared by every component in this run.
-    DOTFILES_BACKUP_SESSION="$(backup_new_session_path "")"
-    export DOTFILES_BACKUP_SESSION DOTFILES_BACKUP_ROOT
 
     log_info "Repository: $repo"
     log_info "Components: $requested"
 
     local ok='' failed='' c
     for c in $requested; do
-        log_header "Installing $c"
+        log_header "Applying $c"
         if "$BASH_BIN" "$repo/$c/setup.sh"; then
             ok="$ok $c"
         else
@@ -151,14 +151,12 @@ main() {
     done
 
     log_header "Summary"
-    [ -z "$ok" ]     || log_success "Installed:${ok}"
+    [ -z "$ok" ]     || log_success "Applied:${ok}"
     [ -z "$failed" ] || log_error   "Failed:${failed}"
-    log_info "Repository: $repo"
-    if [ -d "$DOTFILES_BACKUP_SESSION" ]; then
-        log_info "Backup:     $DOTFILES_BACKUP_SESSION"
-        log_info "Restore:    bash \"$repo/scripts/restore.sh\""
+    if snapshot_is_current; then
+        log_info "Snapshot:   $DOTFILES_SNAPSHOT_DIR  (undo with: make restore)"
     else
-        log_info "Backup:     none needed (nothing was replaced)"
+        log_info "Snapshot:   not touched (nothing was replaced)"
     fi
 
     [ -z "$failed" ]

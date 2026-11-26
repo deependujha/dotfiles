@@ -1,158 +1,127 @@
 # dotfiles
 
-Personal development environment configuration with a one-command bootstrap for macOS and Linux.
+My development environment: shell (aliases, functions, prompt, key bindings), Vim, Neovim (AstroNvim) and Zellij, for Linux and macOS.
 
-The goal is one command on a fresh machine and nothing to do by hand afterwards. Configs are **symlinked** from this repository, so the repo is always the single source of truth.
+This repository, cloned at `~/dotfiles`, is the single source of truth. The configs in the home directory are symlinks into it, and the shell loads its files straight from it. The loop is: edit a file here, `make update` if needed, `make push`.
 
-| Component | Status |
-|-----------|--------|
-| Vim       | ✅ supported |
-| Zellij    | ✅ supported |
-| Neovim (AstroNvim) | ✅ supported |
-| Shell shortcuts (aliases and functions, bash + zsh) | ✅ supported |
-| Git, terminal emulators | planned |
+## Setup
 
-## Installation
+```bash
+git clone git@github.com:deependujha/dotfiles.git ~/dotfiles
+cd ~/dotfiles
+make update
+```
+
+`make update` applies everything to the machine. It is safe to run as often as you like; a run with nothing to change takes a couple of seconds.
+
+On a machine where you only want the result (a cloud box, say), one command clones to `~/dotfiles` and applies:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/deependujha/dotfiles/main/install.sh)
 ```
 
-What this does:
+## Commands
 
-1. Clones this repository to `~/.local/share/dotfiles`. If it is already there, it fast-forwards it instead (a checkout with local changes is left alone).
-2. Runs each component's setup script. For Vim that means:
-   - downloading [vim-plug](https://github.com/junegunn/vim-plug) if it is missing
-   - backing up your existing `~/.vimrc` / `~/.vim`
-   - symlinking `~/.vimrc` to `vim/vimrc`
-   - installing all plugins headlessly
+| Command | What it does |
+|---------|--------------|
+| `make update` | Apply everything in the repo to this machine |
+| `make shell` / `vim` / `nvim` / `zellij` | Apply one component |
+| `make push` | Commit all changes and push. `make push m="message"` sets the message (default: `update`) |
+| `make pull` | Pull from GitHub, then apply |
+| `make status` | Uncommitted changes, unpushed commits, what the snapshot holds |
+| `make restore` | Put back what the last update replaced |
+| `make check` | Syntax-check the scripts (runs before every push) |
 
-   For Zellij it validates `zellij/config.kdl` with `zellij setup --check`, backs up your existing `~/.config/zellij/config.kdl`, and symlinks it to the repo. Only that file is linked, so your `layouts/` and `themes/` are left alone. If `zellij` isn't installed yet, the config is still linked and you get an install hint.
+From any directory, the `dots` shell function runs the same targets: `dots update`, `dots push m="new alias"`. `dots` alone is `cd ~/dotfiles`.
 
-   For Neovim it checks for Neovim ≥ 0.11, backs up your existing `~/.config/nvim`, symlinks it to `nvim/config`, and then installs every plugin, language server, formatter and treesitter parser headlessly. It verifies that each one is actually there afterwards. The first run takes a few minutes.
-   For the shell it adds a small marked block to `~/.bashrc` and `~/.zshrc` (whichever exist) that sources [`shell/aliases.sh`](shell/aliases.sh). See [Shell shortcuts](#shell-shortcuts).
-3. Prints a summary that includes where the backup went.
+## Changing things
 
-When it exits successfully, Vim and Neovim are ready to use. You don't need to run `:PlugInstall` or `:Lazy sync` yourself.
+| I want to | Edit | Then |
+|-----------|------|------|
+| Add an alias | [`shell/aliases.sh`](shell/aliases.sh) | `reload` |
+| Add a function | [`shell/functions.sh`](shell/functions.sh) | `reload` |
+| Change the prompt | [`shell/prompt.bash`](shell/prompt.bash) | `reload` |
+| Add a key binding | [`shell/inputrc`](shell/inputrc) | new terminal |
+| Set something on this machine only | `shell/local.sh` (not tracked) | `reload` |
+| Change Vim | [`vim/vimrc`](vim/vimrc) | restart Vim; `make vim` after adding a plugin |
+| Change Neovim | [`nvim/config/`](nvim/config) | restart Neovim; `make nvim` after adding a plugin or tool |
+| Change Zellij | [`zellij/config.kdl`](zellij/config.kdl) | Zellij reloads it itself |
 
-Environment overrides:
+Edits take effect without `make update`, because the live files are the repo files. `make update` is for the things a symlink can't do: installing plugins, and wiring up a file or component that is new. When the change works, `make push`.
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `DOTFILES_DIR` | `~/.local/share/dotfiles` | Where the bootstrap clones the repo |
-| `DOTFILES_REPO` | `https://github.com/deependujha/dotfiles.git` | Repo to clone |
-| `DOTFILES_BRANCH` | `main` | Branch to clone |
-| `DOTFILES_BACKUP_ROOT` | `~/dotfiles_backup` | Where backups are written |
+`reload` re-reads the rc file in the current shell.
 
-### From a local clone
+## What gets applied
 
-```bash
-git clone https://github.com/deependujha/dotfiles.git ~/dotfiles
-bash ~/dotfiles/install.sh
-```
+| Component | In the home directory | From the repo |
+|-----------|-----------------------|---------------|
+| shell | a marked block in `~/.bashrc` and `~/.zshrc` | sources [`shell/init.sh`](shell/init.sh) |
+| shell | `~/.inputrc` | symlink to `shell/inputrc` |
+| vim | `~/.vimrc` | symlink to `vim/vimrc`; vim-plug and plugins installed |
+| nvim | `~/.config/nvim` | symlink to `nvim/config`; plugins, language servers and treesitter parsers installed |
+| zellij | `~/.config/zellij/config.kdl` | symlink to `zellij/config.kdl` |
 
-When `install.sh` runs from inside a checkout, it uses that checkout directly and doesn't clone anything.
-
-## Selective installation
-
-```bash
-bash install.sh          # default components (currently: vim zellij nvim shell)
-bash install.sh zellij   # only the named components
-bash install.sh --help   # list available components
-```
-
-## Shell shortcuts
-
-[`shell/aliases.sh`](shell/aliases.sh) is the one place for the aliases and small functions I use all the time (git shortcuts, `uv` environment helpers, and so on). Every interactive bash and zsh session sources it.
-
-To add a shortcut, edit the file and open a new terminal (or `source ~/.bashrc` / `source ~/.zshrc`):
-
-```bash
-$EDITOR ~/.local/share/dotfiles/shell/aliases.sh
-```
-
-There is no need to re-run the installer, because the rc files source the file straight from the repository. Commit and push the change to get it on other machines.
-
-The rc files themselves are not symlinked, since they also hold machine-specific lines (PATH, tool init snippets). The installer only manages this block, and re-running it replaces the block in place:
+The rc files are not symlinked, because installers append machine-specific lines to them (PATH, nvm, cargo). `make update` only manages this block, replacing it in place on each run:
 
 ```bash
 # >>> dotfiles shell >>>
-# Added by dotfiles (shell/setup.sh). Put shortcuts in shell/aliases.sh, not here.
-if [ -r "$HOME/.local/share/dotfiles/shell/aliases.sh" ]; then . "$HOME/.local/share/dotfiles/shell/aliases.sh"; fi
+# Added by dotfiles (shell/setup.sh). Edit the files in shell/ there, not this block.
+export DOTFILES_DIR="$HOME/dotfiles"
+if [ -r "$DOTFILES_DIR/shell/init.sh" ]; then . "$DOTFILES_DIR/shell/init.sh"; fi
 # <<< dotfiles shell <<<
 ```
 
-The rc file is copied to the backup directory before it is edited. If neither rc file exists, the one for your login shell is created. The installer checks `aliases.sh` with `bash -n` (and `zsh -n` when zsh is installed) first and changes nothing if it has a syntax error.
+`init.sh` loads `aliases.sh`, `functions.sh`, `prompt.bash` (bash only) and, if it exists, `local.sh`. Anything else you want in every shell belongs in one of those files, not in `~/.bashrc`.
 
-This replaces the old [shellfu](https://github.com/deependujha/shellfu) repository. If its loader block is still in an rc file, the installer removes it; afterwards `~/externals/shellfu` can be deleted.
+Nothing in `$HOME` is touched until the checks pass: the shell files must parse, `zellij setup --check` must accept the config, and the tools a component needs must be installed. The scripts never install system packages; they print the install command for your OS and stop.
 
-## Backup and restore
+## Snapshot
 
-Before the installer replaces anything, it saves the previous version to a new timestamped directory. Existing backups are never overwritten:
+When `make update` is about to replace something in the home directory that didn't come from this repo, it saves it first:
 
 ```text
-~/dotfiles_backup/
-└── 2026-11-06_103000/
-    ├── vim/
-    │   ├── manifest          # name -> original path
-    │   ├── vimrc             # your previous ~/.vimrc (file or symlink, kept as-is)
-    │   └── vim-directory/    # snapshot of your previous ~/.vim
-    └── zellij/
-        ├── manifest
-        └── config.kdl        # your previous ~/.config/zellij/config.kdl
+~/dotfiles/snapshot/          ignored by git
+├── shell/
+│   ├── manifest              name -> original path
+│   ├── bashrc                ~/.bashrc as it was before the block changed
+│   └── inputrc               the previous ~/.inputrc
+└── nvim/
+    └── nvim-config/          the previous ~/.config/nvim
 ```
 
-- Only files the installer is about to change get backed up, and only the first time. Once `~/.vimrc` points at this repo, re-running the installer creates no new backups.
-- `~/.vimrc` is *moved* into the backup and then replaced by the symlink. `~/.vim` stays in place, because the installer only adds to it, and a snapshot *copy* goes into the backup.
-- Backups live outside the repository, so deleting the repo doesn't delete them.
+There is one snapshot. The next update that replaces something overwrites it; an update that replaces nothing leaves it alone. The configs themselves have their history in git, so the snapshot only covers what was on the machine before.
 
-To restore:
+`make restore` shows what it will do, asks, and copies the snapshot back. What is in place at that moment becomes the new snapshot. `make update` applies the repo again.
 
-```bash
-bash ~/.local/share/dotfiles/scripts/restore.sh            # choose from a list
-bash ~/.local/share/dotfiles/scripts/restore.sh 2026-11-06_103000
-```
+## Platforms and dependencies
 
-The restore script shows exactly what it will do and asks before changing anything. Whatever is currently in place gets moved to a new `<timestamp>_pre-restore` backup first, so a restore can itself be undone. Symlinks into this repo are removed, since they hold no data.
-
-If you had no config before installing, no backup was made and there is nothing to restore. To uninstall in that case, remove the symlink (`rm ~/.vimrc`, `rm ~/.config/zellij/config.kdl` or `rm ~/.config/nvim`). For the shell, delete the `# >>> dotfiles shell >>>` block from your rc file.
-
-## Updating
-
-```bash
-# Option 1: re-run the bootstrap command (it pulls, then re-applies)
-bash <(curl -fsSL https://raw.githubusercontent.com/deependujha/dotfiles/main/install.sh)
-
-# Option 2: by hand
-git -C ~/.local/share/dotfiles pull --ff-only
-bash ~/.local/share/dotfiles/install.sh
-```
-
-Because the configs are symlinks (and the shell shortcuts are sourced from the repo), a `git pull` alone updates your Vim, Zellij, Neovim and shell settings. Re-run the installer when plugins were added so they get installed.
-
-## Supported platforms
-
-- **macOS**: tested with the system Bash 3.2 and system Vim 9.1.
 - **Linux**: Debian/Ubuntu, Fedora/RHEL, Arch, openSUSE and Alpine get tailored install hints.
+- **macOS**: works with the system Bash 3.2 and system Vim.
 
-Dependencies: **bash**, **git**, **curl**, **vim** (a full build with `+eval`, not `vim-tiny`), and optionally **zellij** and **neovim** ≥ 0.11. Neovim also needs a C compiler, and uses `rg`, `node`, `go`, `fd`, `lazygit` and `deno` for the full feature set. The installer never installs system packages. If something is missing, it stops before changing anything and prints the install command for your OS.
+Needs **bash**, **git**, **make** and **curl**. Per component: **vim** (a full build with `+eval`, not `vim-tiny`), **neovim** ≥ 0.11 with a C compiler (plus `rg`, `node`, `go`, `fd`, `lazygit`, `deno` for the full feature set), and **zellij**.
 
-## Repository layout
+## Layout
 
 ```text
-install.sh            entry point: bootstrap + run component setup scripts
-common/utils.sh       logging and small helpers
-common/backup.sh      timestamped backups + manifest
-common/detect_os.sh   OS / package-manager detection, install hints
+Makefile              the commands above
+install.sh            runs the component setup scripts (make update); also the curl bootstrap
+common/               logging, snapshot and link helpers, OS detection
+shell/                init.sh, aliases.sh, functions.sh, prompt.bash, inputrc, setup.sh
 vim/                  vimrc, setup.sh, notes/
-zellij/               config.kdl, setup.sh
 nvim/                 config/ (→ ~/.config/nvim), setup.sh, notes/
-shell/                aliases.sh (aliases + functions), setup.sh
-scripts/restore.sh    restore from a backup
+zellij/               config.kdl, setup.sh
+scripts/restore.sh    make restore
+snapshot/             what the last update replaced (not tracked)
 ```
 
-### Adding a component later
+### Adding a component
 
-Create `<tool>/setup.sh`, which can use the helpers in `common/`, and optionally add the tool to `DEFAULT_COMPONENTS` in `install.sh`. `install.sh <tool>` picks it up automatically, and backups and restore work the same way through `backup_item`.
+Create `<tool>/` with the config and a `setup.sh`. For a config that is one file or directory, the script is mostly one call:
 
-See [vim/notes/README.md](vim/notes/README.md) for Vim specifics and [vim/notes/cheatsheet.md](vim/notes/cheatsheet.md) for a quick reference. For Neovim, see [nvim/notes/README.md](nvim/notes/README.md) (adding plugins, changing the theme, languages, clipboard) and [nvim/notes/cheatsheet.md](nvim/notes/cheatsheet.md).
+```bash
+link_config "$COMPONENT" <name> "$SCRIPT_DIR/<file>" "$HOME/<target>"
+```
+
+It links the target to the repo and moves whatever was there into the snapshot. [`zellij/setup.sh`](zellij/setup.sh) is the shortest example to copy. `make <tool>` works as soon as the script exists; add the name to `DEFAULT_COMPONENTS` in `install.sh` to include it in `make update`.
+
+More detail: [vim/notes/README.md](vim/notes/README.md), [vim/notes/cheatsheet.md](vim/notes/cheatsheet.md), [nvim/notes/README.md](nvim/notes/README.md), [nvim/notes/cheatsheet.md](nvim/notes/cheatsheet.md).

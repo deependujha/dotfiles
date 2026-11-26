@@ -1,60 +1,64 @@
 #!/usr/bin/env bash
-# Timestamped backups.
+# The snapshot: one backup of whatever the last run replaced in $HOME.
 #
-# Layout:
-#   $DOTFILES_BACKUP_ROOT/<YYYY-MM-DD_HHMMSS>/<component>/<name>
-#   $DOTFILES_BACKUP_ROOT/<YYYY-MM-DD_HHMMSS>/<component>/manifest
+# Layout (inside the repository, ignored by git):
+#   snapshot/.run                    id of the run that wrote it
+#   snapshot/<component>/<name>      the previous file or directory
+#   snapshot/<component>/manifest    "<name><TAB><original absolute path>" lines
 #
-# The manifest has one "<name><TAB><original absolute path>" line per item,
-# which is all scripts/restore.sh needs to put things back.
-#
-# A session directory is only created when something is actually backed up,
-# so re-running an installer that has nothing to change leaves no empty dirs.
+# There is only ever one snapshot. The first thing a run backs up deletes the
+# previous snapshot; a run that replaces nothing leaves it alone. History of
+# the configs themselves lives in git, so the snapshot only has to cover the
+# files in $HOME that were there before a run changed them.
 
 [ -n "${_DOTFILES_BACKUP_LOADED:-}" ] && return 0
 _DOTFILES_BACKUP_LOADED=1
 
-# Lives outside the repository on purpose: deleting the repo keeps backups.
-DOTFILES_BACKUP_ROOT="${DOTFILES_BACKUP_ROOT:-$HOME/dotfiles_backup}"
+_DOTFILES_REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DOTFILES_SNAPSHOT_DIR="$_DOTFILES_REPO/snapshot"
 
-# Prints a session path that does not exist yet. Never reuses an existing one.
-# Optional $1 is appended to the name (e.g. "pre-restore").
-backup_new_session_path() {
-    local stamp candidate n=1 suffix="${1:+_$1}"
-    stamp="$(date +%Y-%m-%d_%H%M%S)"
-    candidate="$DOTFILES_BACKUP_ROOT/$stamp$suffix"
-    while path_exists "$candidate"; do
-        n=$((n + 1))
-        candidate="$DOTFILES_BACKUP_ROOT/$stamp${suffix}_$n"
-    done
-    printf '%s\n' "$candidate"
+# Where the bootstrap used to clone the repository. Symlinks pointing there
+# are replaced without a backup: they hold no data.
+DOTFILES_LEGACY_DIR="$HOME/.local/share/dotfiles"
+
+# install.sh exports the run id so every component in one run shares a
+# snapshot; a setup script run on its own gets its own id.
+DOTFILES_RUN_ID="${DOTFILES_RUN_ID:-$(date +%Y-%m-%d_%H%M%S)_$$}"
+export DOTFILES_RUN_ID
+
+# True if this run has already written to the snapshot.
+snapshot_is_current() {
+    [ -f "$DOTFILES_SNAPSHOT_DIR/.run" ] \
+        && [ "$(cat "$DOTFILES_SNAPSHOT_DIR/.run")" = "$DOTFILES_RUN_ID" ]
 }
 
-# install.sh exports DOTFILES_BACKUP_SESSION so every component in one run
-# shares a session; a setup script run on its own picks its own.
-_backup_ensure_session() {
-    if [ -z "${DOTFILES_BACKUP_SESSION:-}" ]; then
-        DOTFILES_BACKUP_SESSION="$(backup_new_session_path "")"
-        export DOTFILES_BACKUP_SESSION
+# Start this run's snapshot, replacing the previous one.
+_snapshot_begin() {
+    snapshot_is_current && return 0
+    if path_exists "$DOTFILES_SNAPSHOT_DIR"; then
+        rm -rf -- "$DOTFILES_SNAPSHOT_DIR" || return 1
+        log_info "Replacing the previous snapshot."
     fi
+    mkdir -p "$DOTFILES_SNAPSHOT_DIR" || return 1
+    printf '%s\n' "$DOTFILES_RUN_ID" >"$DOTFILES_SNAPSHOT_DIR/.run"
 }
 
 # backup_item <component> <name> <path> <move|copy>
-#   move: the original is moved into the backup (use when it is about to be
+#   move: the original is moved into the snapshot (use when it is about to be
 #         replaced, e.g. ~/.vimrc). Symlinks are moved as symlinks.
-#   copy: a snapshot is copied and the original stays in place (use for
-#         directories we only add to, e.g. ~/.vim). A symlink to a directory
-#         is followed at the top level so the contents are captured.
+#   copy: a copy is saved and the original stays in place (use for files that
+#         are edited in place, e.g. ~/.bashrc). A symlink to a directory is
+#         followed at the top level so the contents are captured.
 backup_item() {
     local component="$1" name="$2" src="$3" mode="$4"
     local dir dest
 
-    _backup_ensure_session
-    dir="$DOTFILES_BACKUP_SESSION/$component"
+    _snapshot_begin || return 1
+    dir="$DOTFILES_SNAPSHOT_DIR/$component"
     dest="$dir/$name"
 
     if path_exists "$dest"; then
-        log_error "Backup target already exists, refusing to overwrite: $dest"
+        log_error "Snapshot target already exists, refusing to overwrite: $dest"
         return 1
     fi
     mkdir -p "$dir" || return 1
@@ -66,12 +70,39 @@ backup_item() {
     esac
 
     printf '%s\t%s\n' "$name" "$src" >>"$dir/manifest"
-    log_info "Backed up $src -> $dest"
+    log_info "Saved $src -> $dest"
 }
 
-# Prints the session dir if this process created one, else nothing.
+# True if $1 is a symlink to where $2 (a path in this repository) lived in the
+# old clone location.
+is_legacy_link() {
+    [ -L "$1" ] && [ "$(readlink "$1")" = "$DOTFILES_LEGACY_DIR/${2#"$_DOTFILES_REPO"/}" ]
+}
+
+# link_config <component> <name> <repo source> <target>
+# Make <target> a symlink to <repo source>. Whatever was there before goes
+# into the snapshot under <name>.
+link_config() {
+    local component="$1" name="$2" src="$3" target="$4"
+
+    if is_link_to "$target" "$src"; then
+        log_info "Already linked: $target"
+        return 0
+    fi
+    if is_legacy_link "$target" "$src"; then
+        rm -- "$target" || return 1
+        log_info "Removed the link into the old clone ($DOTFILES_LEGACY_DIR)."
+    elif path_exists "$target"; then
+        backup_item "$component" "$name" "$target" move || return 1
+    fi
+    mkdir -p "$(dirname "$target")" || return 1
+    ln -s "$src" "$target" || return 1
+    log_success "Linked $target -> $src"
+}
+
+# Prints the snapshot dir if this run wrote to it, else nothing.
 backup_session_if_used() {
-    if [ -n "${DOTFILES_BACKUP_SESSION:-}" ] && [ -d "$DOTFILES_BACKUP_SESSION" ]; then
-        printf '%s\n' "$DOTFILES_BACKUP_SESSION"
+    if snapshot_is_current; then
+        printf '%s\n' "$DOTFILES_SNAPSHOT_DIR"
     fi
 }

@@ -58,45 +58,23 @@ validate_config() {
     log_success "Config is valid."
 }
 
-config_is_managed() {
-    is_link_to "$CONFIG_TARGET" "$CONFIG_SOURCE"
-}
-
-backup_existing() {
-    if config_is_managed; then
-        log_info "$CONFIG_TARGET already links to this repository; no backup needed."
-        return 0
-    fi
+link() {
     # ~/.config/zellij itself as a broken symlink or a plain file can't hold
     # config.kdl; move it aside so the directory can be created.
     if path_exists "$CONFIG_DIR" && [ ! -d "$CONFIG_DIR" ]; then
         backup_item "$COMPONENT" zellij-directory "$CONFIG_DIR" move
     fi
-    if path_exists "$CONFIG_TARGET"; then
-        backup_item "$COMPONENT" config.kdl "$CONFIG_TARGET" move
-    fi
-}
-
-link_config() {
-    if config_is_managed; then
-        log_info "Symlink already correct: $CONFIG_TARGET -> $CONFIG_SOURCE"
-        return 0
-    fi
-    mkdir -p "$CONFIG_DIR"
-    path_exists "$CONFIG_TARGET" && die "$CONFIG_TARGET still exists; refusing to overwrite it."
-    ln -s "$CONFIG_SOURCE" "$CONFIG_TARGET"
-    log_success "Linked $CONFIG_TARGET -> $CONFIG_SOURCE"
+    link_config "$COMPONENT" config.kdl "$CONFIG_SOURCE" "$CONFIG_TARGET"
 }
 
 main() {
     check_prerequisites
     validate_config
-    backup_existing
-    link_config
+    link
 
     local session
     session="$(backup_session_if_used)"
-    [ -z "$session" ] || log_info "Backup of previous Zellij config: $session/$COMPONENT"
+    [ ! -d "$session/$COMPONENT" ] || log_info "Previous Zellij config: $session/$COMPONENT"
 
     log_success "Zellij is ready."
 }

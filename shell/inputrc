@@ -1,0 +1,6 @@
+# Readline key bindings (bash, python REPL, ...). Linked to ~/.inputrc.
+# Changes apply to new shells; in a running one press Ctrl-x Ctrl-r.
+
+# Up / Down search history for commands starting with what is already typed.
+"\e[A": history-search-backward
+"\e[B": history-search-forward

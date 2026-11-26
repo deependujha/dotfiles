@@ -101,35 +101,9 @@ check_prerequisites() {
     fi
     warn_missing lazygit lazygit "the git UI (<Leader>gg) won't open"
     warn_missing deno deno "markdown live preview (:PeekOpen) is disabled"
-    [ "$warned" -eq 0 ] || log_warn "Continuing; install the tools above later and run 'bash install.sh nvim' again."
+    [ "$warned" -eq 0 ] || log_warn "Continuing; install the tools above later and run 'make nvim' again."
 }
 
-config_is_managed() {
-    is_link_to "$CONFIG_TARGET" "$CONFIG_SOURCE"
-}
-
-backup_existing() {
-    if config_is_managed; then
-        log_info "$CONFIG_TARGET already links to this repository; no backup needed."
-        return 0
-    fi
-    # The whole directory is replaced by a symlink, so it is moved, not copied.
-    # Plugins and Mason tools in ~/.local/share/nvim are left alone and reused.
-    if path_exists "$CONFIG_TARGET"; then
-        backup_item "$COMPONENT" nvim-config "$CONFIG_TARGET" move
-    fi
-}
-
-link_config() {
-    if config_is_managed; then
-        log_info "Symlink already correct: $CONFIG_TARGET -> $CONFIG_SOURCE"
-        return 0
-    fi
-    mkdir -p "$(dirname "$CONFIG_TARGET")"
-    path_exists "$CONFIG_TARGET" && die "$CONFIG_TARGET still exists; refusing to overwrite it."
-    ln -s "$CONFIG_SOURCE" "$CONFIG_TARGET"
-    log_success "Linked $CONFIG_TARGET -> $CONFIG_SOURCE"
-}
 
 # run_nvim <log> <lua file>: run a Lua script in headless nvim with the real
 # config loaded. stdin from /dev/null so nvim can't read the installer itself.
@@ -255,7 +229,7 @@ LUA
             -e 's/^ts-missing /    Treesitter parser: /' \
             -e 's/^ts-error /    Treesitter error: /' "$out" >&2
         log_warn "Usually a missing toolchain (see warnings above) or a network problem."
-        log_warn "Fix it, then re-run 'bash install.sh nvim' or use :Mason / :TSInstall inside nvim."
+        log_warn "Fix it, then re-run 'make nvim' or use :Mason / :TSInstall inside nvim."
         return 1
     fi
     log_success "Language servers, formatters and treesitter parsers installed."
@@ -277,8 +251,9 @@ report_clipboard() {
 
 main() {
     check_prerequisites
-    backup_existing
-    link_config
+    # An existing directory is moved into the snapshot whole. Plugins and
+    # Mason tools in ~/.local/share/nvim are left alone and reused.
+    link_config "$COMPONENT" nvim-config "$CONFIG_SOURCE" "$CONFIG_TARGET"
 
     local failed=0
     install_plugins || failed=1
@@ -289,7 +264,7 @@ main() {
 
     local session
     session="$(backup_session_if_used)"
-    [ -z "$session" ] || log_info "Backup of previous Neovim config: $session/$COMPONENT"
+    [ ! -d "$session/$COMPONENT" ] || log_info "Previous Neovim config: $session/$COMPONENT"
 
     if [ "$failed" -ne 0 ]; then
         log_error "Neovim setup finished with errors (config is linked; see above)."

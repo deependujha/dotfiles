@@ -109,11 +109,11 @@ download_vim_plug() {
     PLUG_DOWNLOADED="$tmp"
 }
 
-# Back up only what we are about to change, and only the first time:
-# once ~/.vimrc points at this repo, the pre-dotfiles state is already saved.
+# Save ~/.vim only the first time: once ~/.vimrc points at this repo, the
+# directory is already ours. ~/.vimrc itself is handled by link_vimrc.
 backup_existing() {
-    if vimrc_is_managed; then
-        log_info "$VIMRC_TARGET already links to this repository; no backup needed."
+    if vimrc_is_managed || is_legacy_link "$VIMRC_TARGET" "$VIMRC_SOURCE"; then
+        log_info "$VIMRC_TARGET already comes from the dotfiles repository; no backup needed."
     else
         # ~/.vim: we only add to it (autoload/plug.vim, plugged/, undo/), so
         # keep it in place and save a snapshot. A broken symlink or a stray
@@ -122,11 +122,6 @@ backup_existing() {
             backup_item "$COMPONENT" vim-directory "$VIM_DIR" copy
         elif path_exists "$VIM_DIR"; then
             backup_item "$COMPONENT" vim-directory "$VIM_DIR" move
-        fi
-
-        # ~/.vimrc (file, symlink elsewhere, or broken symlink) gets replaced.
-        if path_exists "$VIMRC_TARGET"; then
-            backup_item "$COMPONENT" vimrc "$VIMRC_TARGET" move
         fi
     fi
 
@@ -148,14 +143,9 @@ install_vim_plug() {
 }
 
 link_vimrc() {
-    if vimrc_is_managed; then
-        log_info "Symlink already correct: $VIMRC_TARGET -> $VIMRC_SOURCE"
-        return 0
-    fi
-    # backup_existing moved anything here away; never clobber if it didn't.
-    path_exists "$VIMRC_TARGET" && die "$VIMRC_TARGET still exists; refusing to overwrite it."
-    ln -s "$VIMRC_SOURCE" "$VIMRC_TARGET"
-    log_success "Linked $VIMRC_TARGET -> $VIMRC_SOURCE"
+    # An existing ~/.vimrc (file, symlink elsewhere, or broken symlink) is
+    # moved into the snapshot.
+    link_config "$COMPONENT" vimrc "$VIMRC_SOURCE" "$VIMRC_TARGET"
 }
 
 # Prints names of declared plugins whose directories are missing or empty.
@@ -289,7 +279,7 @@ main() {
 
     local session
     session="$(backup_session_if_used)"
-    [ -z "$session" ] || log_info "Backup of previous Vim config: $session/$COMPONENT"
+    [ ! -d "$session/$COMPONENT" ] || log_info "Previous Vim config: $session/$COMPONENT"
 
     if [ "$plugins_ok" -ne 0 ]; then
         log_error "Vim setup finished with errors."

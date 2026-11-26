@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# Restore configuration from a backup made by install.sh.
+# Put back what the last `make update` replaced, from snapshot/.
 #
-#   bash scripts/restore.sh            # pick a backup interactively
-#   bash scripts/restore.sh <name>     # e.g. 2026-11-06_103000
+#   make restore        (or: bash scripts/restore.sh)
 #
-# Nothing is deleted: whatever is currently in place is first moved into a new
-# "<timestamp>_pre-restore" backup (symlinks into this repository are simply
-# removed — they hold no data). Backups are copied back, never consumed, so
-# the same backup can be restored again later.
+# Nothing is lost: whatever is currently in place becomes the new snapshot
+# (symlinks into this repository are simply removed, they hold no data).
+# `make update` applies the repository again.
 
 set -euo pipefail
 
@@ -19,28 +17,8 @@ REPO_DIR="$(cd -P "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=../common/backup.sh
 . "$REPO_DIR/common/backup.sh"
 
-# Prints backup session names (oldest first; names sort chronologically).
-list_sessions() {
-    local d
-    for d in "$DOTFILES_BACKUP_ROOT"/*/; do
-        [ -d "$d" ] || continue
-        d="${d%/}"
-        # Only sessions with at least one component manifest are restorable.
-        ls "$d"/*/manifest >/dev/null 2>&1 || continue
-        printf '%s\n' "${d##*/}"
-    done
-}
-
-# Prints the components contained in a session, e.g. "vim".
-session_components() {
-    local m out=''
-    for m in "$DOTFILES_BACKUP_ROOT/$1"/*/manifest; do
-        [ -f "$m" ] || continue
-        m="${m%/manifest}"
-        out="$out ${m##*/}"
-    done
-    printf '%s\n' "${out# }"
-}
+# The snapshot being restored is parked here while the new one is written.
+OLD="$DOTFILES_SNAPSHOT_DIR.restoring"
 
 # True if $1 is a symlink pointing somewhere inside this repository.
 is_repo_link() {
@@ -51,55 +29,35 @@ is_repo_link() {
     return 1
 }
 
-choose_session() {
-    local sessions="$1" count i=0 choice name
-    count="$(printf '%s\n' "$sessions" | wc -l | tr -d ' ')"
-
-    printf '\nAvailable backups in %s:\n' "$DOTFILES_BACKUP_ROOT" >&2
-    while IFS= read -r name; do
-        i=$((i + 1))
-        printf '  %2d) %s   [%s]\n' "$i" "$name" "$(session_components "$name")" >&2
-    done <<EOF
-$sessions
-EOF
-    printf 'Select a backup [1-%s]: ' "$count" >&2
-    read -r choice || choice=''
-    case "$choice" in
-        ''|*[!0-9]*) die "No valid selection; nothing was changed." ;;
-    esac
-    [ "$choice" -ge 1 ] && [ "$choice" -le "$count" ] || die "Selection out of range; nothing was changed."
-    printf '%s\n' "$sessions" | sed -n "${choice}p"
-}
-
 # Print what will happen for every item, so the user confirms a concrete plan.
 show_plan() {
-    local session_dir="$1" manifest component name target
+    local dir="$1" manifest component name target
     printf '\nRestore plan:\n'
-    for manifest in "$session_dir"/*/manifest; do
+    for manifest in "$dir"/*/manifest; do
         component="$(basename "$(dirname "$manifest")")"
         while IFS="$(printf '\t')" read -r name target; do
             [ -n "$name" ] || continue
             printf '  [%s] %s\n' "$component" "$target"
             if is_repo_link "$target"; then
-                printf '      - remove current symlink into the dotfiles repo\n'
+                printf '      - remove the current symlink into the dotfiles repo\n'
             elif path_exists "$target"; then
-                printf '      - move current version to a pre-restore backup\n'
+                printf '      - move the current version into the new snapshot\n'
             fi
-            printf '      - copy back from %s/%s\n' "$component" "$name"
+            printf '      - copy back from snapshot/%s/%s\n' "$component" "$name"
         done <"$manifest"
     done
     printf '\n'
 }
 
-restore_session() {
-    local session_dir="$1" manifest component name target src
-    for manifest in "$session_dir"/*/manifest; do
+restore_from() {
+    local dir="$1" manifest component name target src
+    for manifest in "$dir"/*/manifest; do
         component="$(basename "$(dirname "$manifest")")"
         while IFS="$(printf '\t')" read -r name target; do
             [ -n "$name" ] || continue
-            src="$session_dir/$component/$name"
+            src="$dir/$component/$name"
             if ! path_exists "$src"; then
-                log_warn "Missing from backup, skipping: $src"
+                log_warn "Missing from the snapshot, skipping: $src"
                 continue
             fi
 
@@ -118,38 +76,29 @@ restore_session() {
 }
 
 main() {
-    local sessions selected session_dir
-
-    sessions="$(list_sessions)"
-    if [ -z "$sessions" ]; then
-        log_info "No backups found in $DOTFILES_BACKUP_ROOT."
-        log_info "Backups are only created when the installer replaces existing files;"
-        log_info "if you had no previous config, there is nothing to restore."
+    if path_exists "$OLD"; then
+        die "$OLD exists: an earlier restore was interrupted. It holds the snapshot that was being restored; check it, then move it back to $DOTFILES_SNAPSHOT_DIR or delete it."
+    fi
+    if ! ls "$DOTFILES_SNAPSHOT_DIR"/*/manifest >/dev/null 2>&1; then
+        log_info "No snapshot in $DOTFILES_SNAPSHOT_DIR."
+        log_info "One is only written when 'make update' replaces something in your home directory."
         exit 0
     fi
 
-    if [ $# -gt 0 ]; then
-        selected="$1"
-        printf '%s\n' "$sessions" | grep -qxF -- "$selected" \
-            || die "No such backup: $selected (look in $DOTFILES_BACKUP_ROOT)"
+    show_plan "$DOTFILES_SNAPSHOT_DIR"
+    confirm "Proceed with the restore?" || { log_info "Aborted; nothing was changed."; exit 0; }
+
+    mv "$DOTFILES_SNAPSHOT_DIR" "$OLD"
+    restore_from "$OLD"
+
+    if snapshot_is_current; then
+        rm -rf -- "$OLD"
+        log_info "What was in place before is now the snapshot."
     else
-        selected="$(choose_session "$sessions")"
+        # Nothing had to be moved aside, so the restored snapshot stays as it was.
+        mv "$OLD" "$DOTFILES_SNAPSHOT_DIR"
     fi
-    session_dir="$DOTFILES_BACKUP_ROOT/$selected"
-
-    show_plan "$session_dir"
-    confirm "Proceed with restore from $selected?" || { log_info "Aborted; nothing was changed."; exit 0; }
-
-    # Current state goes into its own new session, never into an existing one.
-    DOTFILES_BACKUP_SESSION="$(backup_new_session_path pre-restore)"
-    export DOTFILES_BACKUP_SESSION
-
-    restore_session "$session_dir"
-
-    if [ -d "$DOTFILES_BACKUP_SESSION" ]; then
-        log_info "Previous state saved to: $DOTFILES_BACKUP_SESSION"
-    fi
-    log_success "Restore from $selected complete."
+    log_success "Restore complete. Run 'make update' to apply the repository again."
 }
 
 main "$@"

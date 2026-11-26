@@ -33,7 +33,7 @@ Edit `vim/vimrc` in the repo. `~/.vimrc` is a symlink, so the change applies to 
    ```
 2. Install it with either of these:
    ```bash
-   bash install.sh vim                 # same headless install + verification
+   make vim                             # same headless install + verification
    vim +'PlugInstall --sync' +qa       # or directly
    ```
 
@@ -47,7 +47,7 @@ vim +'PlugUpdate --sync' +qa    # update all plugins
 vim +PlugUpgrade +qa            # update vim-plug itself
 ```
 
-For a clean reinstall, move `~/.vim/plugged` aside and run `bash install.sh vim`.
+For a clean reinstall, move `~/.vim/plugged` aside and run `make vim`.
 
 ## Clipboard integration
 
@@ -69,10 +69,10 @@ Check your build with `vim --version | grep clipboard`. Over SSH there is no loc
 
 | Symptom | Fix |
 |---------|-----|
-| `E117: Unknown function: plug#begin` | vim-plug is missing. Run `bash install.sh vim`. |
+| `E117: Unknown function: plug#begin` | vim-plug is missing. Run `make vim`. |
 | Plugins missing, or syntax not highlighted | `vim +'PlugInstall --sync' +qa`. Check that `git` works and can reach github.com. |
 | Installer says "lacks +eval" | You have `vim-tiny`. Install a full Vim (the installer prints the command). |
 | Yanks don't reach the system clipboard | See the clipboard section above. On Debian/Ubuntu run `sudo apt install vim-gtk3`. On Fedora use `vimx` from `vim-X11`. |
 | `~/.vim/vimrc` or `~/.config/vim/vimrc` ignored | `~/.vimrc` takes precedence. The installer warns about this. Merge what you need into `vim/vimrc`. |
-| Want the old config back | `bash scripts/restore.sh` |
+| Want the old config back | `make restore` |
 | Undo history not persisting | Make sure `~/.vim/undo/` exists (the installer creates it). |
