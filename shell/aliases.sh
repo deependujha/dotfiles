@@ -29,6 +29,25 @@ gstatus() {
     git status
 }
 
+reload() {
+  local rc
+  if [[ -n $ZSH_VERSION ]]; then
+    rc=~/.zshrc
+  elif [[ -n $BASH_VERSION ]]; then
+    rc=~/.bashrc
+  else
+    echo "reload: unsupported shell (not bash or zsh)" >&2
+    return 1
+  fi
+
+  if [[ -f $rc ]]; then
+    source "$rc" && echo "reloaded $rc"
+  else
+    echo "reload: $rc not found" >&2
+    return 1
+  fi
+}
+
 # Push the current branch to origin.
 gpush() {
     local branch
